@@ -1,0 +1,132 @@
+#!/usr/bin/env python
+import sys
+from subprocess import PIPE, STDOUT, CalledProcessError, Popen, check_call, check_output
+
+version = "0.1.1"
+
+if len(sys.argv) > 1 and (sys.argv[1] == "-v" or sys.argv[1] == "--version"):
+    print(version)
+    sys.exit()
+
+
+def mpc_command(cmds):
+    if isinstance(cmds, str):
+        cmds = [cmds]
+    check_call(["mpc"] + cmds)
+
+
+def mpc_output(cmds) -> str:
+    if isinstance(cmds, str):
+        cmds = [cmds]
+    return check_output(["mpc"] + cmds).decode()
+
+
+def mpc_current_playing() -> str:
+    mpc_current = mpc_output("current")
+    return f"Playing - {mpc_current}" if mpc_current else "Nothing is playing"
+
+
+def create_rofi_process(title=mpc_current_playing()) -> Popen:
+    return Popen(
+        ["rofi", "-mesg", title, "-i", "-dmenu", "-p", "MPC: "],
+        stdout=PIPE,
+        stdin=PIPE,
+        stderr=PIPE,
+    )
+
+
+def mpc_command_result(input: bytes) -> str:
+    """
+    Pipes a input into rofi and returns the output (selected item) as
+    a string. If no selection is made an exception is thrown.
+    """
+    p = create_rofi_process()
+    output = p.communicate(input=input)[0]
+    if p.returncode != 0:
+        raise Exception("Rofi exited before a selection was made")
+    return output.decode().rstrip()
+
+
+def mpc_play(song: str, clear_before=False, playlist=False):
+    """
+    Handles playing of a song/playlist by path.
+    """
+    if clear_before:
+        mpc_command("clear")
+    if playlist:
+        mpc_command(["load", song])
+    else:
+        mpc_command(["add", song])
+    mpc_command("play")
+
+
+def mpc_add_song_to_queue(clear_before: bool):
+    """
+    Lets the user select a song from the library to queue next.
+    """
+    mpc_command("update")
+    songs = mpc_output("listall")
+    try:
+        selected_song = mpc_command_result(bytes(songs, "utf-8"))
+        mpc_play(selected_song, clear_before)
+    except Exception:
+        pass
+
+
+def mpc_add_playlist_to_queue(clear_before: bool):
+    """
+    Lets the user select a playlist from the library to play.
+    """
+    mpc_command("update")
+    playlists = mpc_output("lsplaylists")
+    try:
+        selected_playlist = mpc_command_result(bytes(playlists, "utf-8"))
+        mpc_play(selected_playlist, clear_before=clear_before, playlist=True)
+    except Exception:
+        pass
+
+
+def mpc_shuffle_all():
+    """
+    Shuffles all the songs in the library and starts playing.
+    """
+    mpc_command("update")
+    songs = mpc_output("ls").split("\n")
+    for song in songs:
+        mpc_command(["add", song])
+    mpc_command("shuffle")
+    mpc_command("play")
+
+
+def mpc_stop_and_clear():
+    mpc_command("stop")
+    mpc_command("clear")
+
+
+def mpc_navigate_track(forward):
+    if forward:
+        mpc_command("next")
+    else:
+        mpc_command("prev")
+    mpc_command("pause")
+    mpc_command("play")
+
+
+opts = {
+    "play": lambda: mpc_add_song_to_queue(clear_before=True),
+    "queue": lambda: mpc_add_song_to_queue(clear_before=False),
+    "play playlist": lambda: mpc_add_playlist_to_queue(clear_before=True),
+    "shuffle all": mpc_shuffle_all,
+    "shuffle queue": lambda: mpc_command("shuffle"),
+    "pause": lambda: mpc_command("pause"),
+    "unpause": lambda: mpc_command("play"),
+    "stop": mpc_stop_and_clear,
+    "next track": lambda: mpc_navigate_track(forward=True),
+    "previous track": lambda: mpc_navigate_track(forward=False),
+}
+
+opts_data = bytes("\n".join(opts.keys()), "utf-8")
+res = mpc_command_result(opts_data)
+
+if res in opts:
+    opts[res]()
