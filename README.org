@@ -1,0 +1,21 @@
+* rofi-mpc
+A simple rofi interface for mpd based on mpc
+
+** Installation
+Simply copy the rofi-mpc script somewhere in your path and make sure it is executable. The script also needs the following dependencies installed (and working!):
+- mpd
+- mpc
+- python
+- rofi
+
+** Options
+Currently rofi-mpc lets you do the following:
+- play a single track
+- queue a track next (and start playing if queue is empty)
+- play a random queue
+- shuffle the current queue
+- pause
+- unpause
+- stop (clears the queue as well)
+- skip to next track
+- go to previous track
