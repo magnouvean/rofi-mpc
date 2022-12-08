@@ -1,12 +1,19 @@
 #!/usr/bin/env python
-import sys
+import argparse
 from subprocess import PIPE, STDOUT, CalledProcessError, Popen, check_call, check_output
 
-version = "0.1.1"
+version = "0.1.2"
 
-if len(sys.argv) > 1 and (sys.argv[1] == "-v" or sys.argv[1] == "--version"):
+# Argument parsing
+parser = argparse.ArgumentParser()
+parser.add_argument("-q", "--quiet", dest="quiet_mode", action=argparse.BooleanOptionalAction)
+parser.add_argument("-v", "--version", dest="version", action=argparse.BooleanOptionalAction)
+args = parser.parse_args()
+
+
+if args.version:
     print(version)
-    sys.exit()
+    exit()
 
 
 def mpc_command(cmds):
@@ -126,7 +133,12 @@ opts = {
 }
 
 opts_data = bytes("\n".join(opts.keys()), "utf-8")
-res = mpc_command_result(opts_data)
 
-if res in opts:
-    opts[res]()
+try:
+    res = mpc_command_result(opts_data)
+
+    if res in opts:
+        opts[res]()
+except Exception as e:
+    if not args.quiet_mode:
+        print(e)
