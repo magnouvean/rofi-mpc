@@ -19,3 +19,8 @@ Currently rofi-mpc lets you do the following:
 - stop (clears the queue as well)
 - skip to next track
 - go to previous track
+
+** Arguments
+The following command line arguments are supported:
+- ~-v~ / ~--version~ (prints the current version)
+- ~-q~ / ~--quiet~ (disables output to terminal, given the program doesn't crash)
